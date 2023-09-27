@@ -200,8 +200,8 @@ from pyspark.sql.types import StructType, StructField, StringType, DateType
 master_df_path    = 'dbfs:/FileStore/super-cricket/master_df.parquet'
 initial_pull_date = date(2021, 1, 1)
 end_date          = date.today() - timedelta(days=1)
-series_urls       = get_series_urls(2021) #uncomment to run from custom year
-#series_urls       = get_series_urls(datetime.now().year)
+#series_urls       = get_series_urls(2021) #uncomment to run from custom year
+series_urls       = get_series_urls(datetime.now().year)
 
 schema = StructType([StructField('date', DateType(), True),
                      StructField('first_innings_team', StringType(), True),
