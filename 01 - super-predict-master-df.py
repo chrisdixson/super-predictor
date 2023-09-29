@@ -106,7 +106,7 @@ def team_info(element, result):
         team2  = element.find('p', class_ = 'ds-text-tight-m ds-font-bold ds-capitalize ds-truncate')
         team_info_list = [team1.text, 'N/A', 'N/A', 'N/A', team2.text, 'N/A', 'N/A', 'N/A']
 
-    print(team_info_list)
+    #print(team_info_list)
     return team_info_list
 
 def get_result(element, result):
