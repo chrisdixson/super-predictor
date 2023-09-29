@@ -88,13 +88,12 @@ def check_date(element, start_date, end_date):
 
 def team_info(element, result):
     
-    team1_info = element.find('div', class_='ci-team-score ds-flex ds-justify-between ds-items-center ds-text-typo ds-opacity-50 ds-my-1')
-    team2_info = element.find('div', class_='ci-team-score ds-flex ds-justify-between ds-items-center ds-text-typo ds-my-1')
-
+    teams_info = element.find_all('div', class_=re.compile("^ci-team-score"))
+ 
     if result == 'RESULT':
         # get team name, runs, wickets and overs information and add it to the game within game_list
         team_info_list = []
-        for info in [team1_info, team2_info]:
+        for info in teams_info:
             team  = info.find('p', class_= 'ds-text-tight-m ds-font-bold ds-capitalize ds-truncate').text
             over  = info.find('span', class_ = 'ds-text-compact-xs ds-mr-0.5').text.strip()
             over = over if over else '(50/50 ov)'
@@ -107,6 +106,7 @@ def team_info(element, result):
         team2  = element.find('p', class_ = 'ds-text-tight-m ds-font-bold ds-capitalize ds-truncate')
         team_info_list = [team1.text, 'N/A', 'N/A', 'N/A', team2.text, 'N/A', 'N/A', 'N/A']
 
+    print(team_info_list)
     return team_info_list
 
 def get_result(element, result):
@@ -272,17 +272,17 @@ from pyspark.sql.types import StructType, StructField, StringType, DateType
 master_df_path    = 'dbfs:/FileStore/master_df.csv'
 initial_pull_date = date(2018, 1, 1)
 end_date          = date.today() - timedelta(days=1)
-series_urls       = get_series_urls(2021)
+series_urls       = get_series_urls(2011)
 
 schema = StructType([StructField('date', DateType(), True),
-                     StructField('first_innings_team', StringType(), True),
-                     StructField('first_innings_over_info', StringType(), True),                    
-                     StructField('first_innings_runs', StringType(), True),
-                     StructField('first_innings_wickets', StringType(), True),
                      StructField('second_innings_team', StringType(), True), 
                      StructField('second_innings_over_info', StringType(), True),   
                      StructField('second_innings_runs', StringType(), True),
                      StructField('second_innings_wickets', StringType(), True),
+                     StructField('first_innings_team', StringType(), True),
+                     StructField('first_innings_over_info', StringType(), True),                    
+                     StructField('first_innings_runs', StringType(), True),
+                     StructField('first_innings_wickets', StringType(), True),
                      StructField('result', StringType(), True),
                      StructField('winner', StringType(), True),
                      StructField('scorecard_url', StringType(), True),
@@ -291,11 +291,17 @@ schema = StructType([StructField('date', DateType(), True),
                      StructField('game_name', StringType(), True)])
 
 master_df = spark.createDataFrame([], schema=schema) # this line is commented out as the df is already saved to dbfs - uncomment to clear and     reupload to the db
+desired_order = ['date', 'first_innings_team', 'first_innings_over_info', 'first_innings_runs',
+                 'first_innings_wickets', 'second_innings_team', 'second_innings_over_info', 'second_innings_runs',
+                 'second_innings_wickets', 'result', 'winner', 'scorecard_url', 'ball_by_ball_commentary_url',
+                 'url', 'game_name']
+master_df = master_df.select(desired_order)
 
 for i, series in enumerate(series_urls):
     try:
         print(f'Success {i}: {series}')
         series_df = spark.createDataFrame(game_df(series), schema = schema)
+        series_df = series_df.select(desired_order)
         master_df = master_df.union(series_df)
     except RequestException:
         print(f'Request Exception: could not pull from the following series link: {series}')
