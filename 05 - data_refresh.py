@@ -137,13 +137,15 @@ def file_exists(path):
 
 #### SCRAPE ALL GAME INFO FROM SERIES URL ####
 
-def game_df(series_url, start_date = date(2018, 1, 1), end_date = date.today() - timedelta(days=1)):
+def game_df(series_url, start_date = date(2011, 1, 1), end_date = date.today() - timedelta(days=1)):
 
     # access the series webpage and pick out all the games #
     request = requests.get(series_url)
     soup    = BeautifulSoup(request.text, "html.parser")
     games   = soup.find(class_="ds-mb-4").find_all('div', class_="ds-flex")
-    
+    #rint(games)
+    #games   = soup.find(class_="ds-mb-4").find_all("a")
+    #print(games)
     # set helper variables #
     game_list = []
     i = 0
@@ -186,7 +188,7 @@ def game_df(series_url, start_date = date(2018, 1, 1), end_date = date.today() -
     for j in range(len(game_list)):
         if not game_list[j][0]:
             game_list[j][0] = game_list[j-1][0]
-    
+    print(game_list)
     return game_list
 
 # COMMAND ----------
@@ -204,14 +206,14 @@ series_urls       = get_series_urls(2011) #uncomment to run from custom year
 #series_urls       = get_series_urls(datetime.now().year)
 
 schema = StructType([StructField('date', DateType(), True),
-                     StructField('second_innings_team', StringType(), True), 
-                     StructField('second_innings_over_info', StringType(), True),   
-                     StructField('second_innings_runs', StringType(), True),
-                     StructField('second_innings_wickets', StringType(), True),
                      StructField('first_innings_team', StringType(), True),
                      StructField('first_innings_over_info', StringType(), True),                    
                      StructField('first_innings_runs', StringType(), True),
                      StructField('first_innings_wickets', StringType(), True),
+                     StructField('second_innings_team', StringType(), True), 
+                     StructField('second_innings_over_info', StringType(), True),   
+                     StructField('second_innings_runs', StringType(), True),
+                     StructField('second_innings_wickets', StringType(), True),
                      StructField('result', StringType(), True),
                      StructField('winner', StringType(), True),
                      StructField('scorecard_url', StringType(), True),
@@ -220,21 +222,27 @@ schema = StructType([StructField('date', DateType(), True),
                      StructField('game_name', StringType(), True)])
 
 master_df = spark.createDataFrame([], schema=schema) # this line is commented out as the df is already saved to dbfs - uncomment to clear and     reupload to the db
-desired_order = ['date', 'first_innings_team', 'first_innings_over_info', 'first_innings_runs',
-                 'first_innings_wickets', 'second_innings_team', 'second_innings_over_info', 'second_innings_runs',
-                 'second_innings_wickets', 'result', 'winner', 'scorecard_url', 'ball_by_ball_commentary_url',
-                 'url', 'game_name']
-master_df = master_df.select(desired_order)
+# desired_order = ['date', 'first_innings_team', 'first_innings_over_info', 'first_innings_runs',
+#                  'first_innings_wickets', 'second_innings_team', 'second_innings_over_info', 'second_innings_runs',
+#                  'second_innings_wickets', 'result', 'winner', 'scorecard_url', 'ball_by_ball_commentary_url',
+#                  'series', 'game_name']
+# master_df = master_df.select(desired_order)
 
 for i, series in enumerate(series_urls):
     try:
         print(f'Success {i}: {series}')
         series_df = spark.createDataFrame(game_df(series), schema = schema)
         series_df = series_df.select(desired_order)
+        print(series_df)
         master_df = master_df.union(series_df)
     except RequestException:
         print(f'Request Exception: could not pull from the following series link: {series}')
         break
+
+# COMMAND ----------
+
+# series_df = spark.createDataFrame(game_df('https://www.espncricinfo.com/series/asia-cup-2023-1388374/match-schedule-fixtures-and-results'), schema = schema)
+# series_df.show()
 
 # COMMAND ----------
 
