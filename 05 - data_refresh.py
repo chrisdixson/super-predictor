@@ -202,8 +202,8 @@ from pyspark.sql.types import StructType, StructField, StringType, DateType
 master_df_path    = 'dbfs:/FileStore/super-cricket/master_df.parquet'
 initial_pull_date = date(2021, 1, 1)
 end_date          = date.today()
-series_urls       = get_series_urls(2011) #uncomment to run from custom year
-#series_urls       = get_series_urls(datetime.now().year)
+#series_urls       = get_series_urls(2011) #uncomment to run from custom year
+series_urls       = get_series_urls(datetime.now().year)
 
 schema = StructType([StructField('date', DateType(), True),
                      StructField('first_innings_team', StringType(), True),
@@ -222,10 +222,10 @@ schema = StructType([StructField('date', DateType(), True),
                      StructField('game_name', StringType(), True)])
 
 master_df = spark.createDataFrame([], schema=schema) # this line is commented out as the df is already saved to dbfs - uncomment to clear and     reupload to the db
-# desired_order = ['date', 'first_innings_team', 'first_innings_over_info', 'first_innings_runs',
-#                  'first_innings_wickets', 'second_innings_team', 'second_innings_over_info', 'second_innings_runs',
-#                  'second_innings_wickets', 'result', 'winner', 'scorecard_url', 'ball_by_ball_commentary_url',
-#                  'series', 'game_name']
+desired_order = ['date', 'first_innings_team', 'first_innings_over_info', 'first_innings_runs',
+                 'first_innings_wickets', 'second_innings_team', 'second_innings_over_info', 'second_innings_runs',
+                 'second_innings_wickets', 'result', 'winner', 'scorecard_url', 'ball_by_ball_commentary_url',
+                 'series', 'game_name']
 # master_df = master_df.select(desired_order)
 
 for i, series in enumerate(series_urls):
@@ -233,7 +233,7 @@ for i, series in enumerate(series_urls):
         print(f'Success {i}: {series}')
         series_df = spark.createDataFrame(game_df(series), schema = schema)
         series_df = series_df.select(desired_order)
-        print(series_df)
+        #print(series_df)
         master_df = master_df.union(series_df)
     except RequestException:
         print(f'Request Exception: could not pull from the following series link: {series}')
@@ -241,13 +241,8 @@ for i, series in enumerate(series_urls):
 
 # COMMAND ----------
 
-# series_df = spark.createDataFrame(game_df('https://www.espncricinfo.com/series/asia-cup-2023-1388374/match-schedule-fixtures-and-results'), schema = schema)
-# series_df.show()
-
-# COMMAND ----------
-
 #Remove all games that are already in dataset
-overwrite = False #Set to true to recalculate whole file
+overwrite =  False #Set to true to recalculate whole file
 if file_exists(master_df_path) and not overwrite:
     existing_df = spark.read.parquet(master_df_path)
     master_df_delta = master_df.exceptAll(existing_df)
@@ -266,7 +261,7 @@ master_df_filtered = master_df.filter(col('first_innings_team').isin(world_cup_t
 
 #Only append rows which are not contained in the existing file
 filtered_filename = 'dbfs:/FileStore/super-cricket/master_df_filtered.parquet'
-if file_exists(filtered_filename):
+if file_exists(filtered_filename) and not overwrite:
     existing_filtered_df = spark.read.parquet(filtered_filename)
     filtered_delta_df = master_df_filtered.exceptAll(existing_filtered_df)
     filtered_delta_df.write.parquet(filtered_filename, mode= "append")
@@ -473,8 +468,8 @@ def save_scorecard(url, game_name, game_series, game_date):
                     table_dfs[csv_name] = old_bowling
                 game_bowl = game_bowl.union(old_bowling)
 
-    for table_name, table_df in table_dfs.items():
-        table_df.coalesce(1).write.parquet(f'dbfs:/FileStore/master_df/scorecard_data/{table_name}.parquet', mode= "overwrite")
+    #for table_name, table_df in table_dfs.items():
+    #    table_df.coalesce(1).write.parquet(f'dbfs:/FileStore/master_df/scorecard_data/{table_name}.parquet', mode= "overwrite")
     return name, game_bat, game_bowl
 
 def save_master_df_scorecards(df, overwrite = False):
@@ -529,10 +524,6 @@ master_bat_filtered = master_bat_filtered.withColumn("Dismissal", remove_special
 
 # COMMAND ----------
 
-len(master_bat_filtered.columns)
-
-# COMMAND ----------
-
 # MAGIC %md
 # MAGIC ##Store Data
 
@@ -541,7 +532,8 @@ len(master_bat_filtered.columns)
 root = 'dbfs:/FileStore/super-cricket/'
 #Use delta logic
 bat_filename = f'{root}/master_bat_filtered_series.parquet'
-if file_exists(bat_filename):
+overwrite = False
+if file_exists(bat_filename) and not overwrite:
     existing_bat = spark.read.parquet(bat_filename)
     master_bat_delta = master_bat_filtered.exceptAll(existing_bat)
     master_bat_delta.write.parquet(f'{root}/master_bat_filtered_series.parquet', mode= "append")
@@ -549,20 +541,12 @@ else:
     master_bat_filtered.write.parquet(f'{root}/master_bat_filtered_series.parquet', mode= "overwrite")
 
 bowl_filename = f'{root}/master_bowl_filtered_series.parquet'
-if file_exists(bowl_filename):
+if file_exists(bowl_filename) and not overwrite:
     existing_bowl = spark.read.parquet(bowl_filename)
     master_bowl_delta = master_bowl_filtered.exceptAll(existing_bowl)
     master_bowl_delta.write.parquet(f'{root}/master_bowl_filtered_series.parquet', mode= "append")
 else:
     master_bowl_filtered.write.parquet(f'{root}/master_bowl_filtered_series.parquet', mode= "overwrite")
-
-# COMMAND ----------
-
-len(master_bat_filtered.columns)
-
-# COMMAND ----------
-
-len(spark.read.parquet(bat_filename).columns)
 
 # COMMAND ----------
 
@@ -601,18 +585,3 @@ tables = ["master_bowl",
           "master_results"]
 
 write_to_table(filenames, tables)
-
-# COMMAND ----------
-
-#Function for cleaning tables - removing duplicates
-# def clean_tables(tables):
-#     for t in tables:
-#         t_name = f'super_predictor_v2.{t}'
-#         df = spark.read.table(t_name)
-#         df_d = df.dropDuplicates("game", "series")
-#         df_d.write.mode("overwrite").option("mergeSchema", "true").saveAsTable(t_name)
-
-# tables = ["master_bowl",
-#           "master_bat",
-#           "master_results"]
-# clean_tables(tables)
