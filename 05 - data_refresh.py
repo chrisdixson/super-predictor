@@ -188,7 +188,7 @@ def game_df(series_url, start_date = date(2011, 1, 1), end_date = date.today() -
     for j in range(len(game_list)):
         if not game_list[j][0]:
             game_list[j][0] = game_list[j-1][0]
-    print(game_list)
+    #print(game_list)
     return game_list
 
 # COMMAND ----------
@@ -231,7 +231,7 @@ desired_order = ['date', 'first_innings_team', 'first_innings_over_info', 'first
 for i, series in enumerate(series_urls):
     try:
         print(f'Success {i}: {series}')
-        series_df = spark.createDataFrame(game_df(series), schema = schema)
+        series_df = spark.createDataFrame(game_df(series, end_date = end_date), schema = schema)
         series_df = series_df.select(desired_order)
         #print(series_df)
         master_df = master_df.union(series_df)
