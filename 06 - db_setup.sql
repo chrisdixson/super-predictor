@@ -66,3 +66,8 @@ from super_predictor_v2.master_results A
 join super_predictor_v2.master_results B
   on A.date = B.date
   and A.game_name = B.game_name
+
+-- COMMAND ----------
+
+select * from super_predictor_v2.master_results
+where date = '2023-09-13'
