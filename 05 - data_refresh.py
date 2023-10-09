@@ -98,9 +98,8 @@ def team_info(element, result):
             runs, wickets = score.split('/')
             [team_info_list.append(x) for x in [team, over, runs, wickets]]
     else:
-        team1  = element.find('p', class_= 'ds-text-tight-m ds-font-bold ds-capitalize ds-truncate')
-        team2  = element.find('p', class_ = 'ds-text-tight-m ds-font-bold ds-capitalize ds-truncate')
-        team_info_list = [team1.text, 'N/A', 'N/A', 'N/A', team2.text, 'N/A', 'N/A', 'N/A']
+        teams  = element.find_all('p', class_= 'ds-text-tight-m ds-font-bold ds-capitalize ds-truncate')
+        team_info_list = [teams[0].text, 'N/A', 'N/A', 'N/A', teams[1].text, 'N/A', 'N/A', 'N/A']
 
     #print(team_info_list)
     return team_info_list
@@ -210,8 +209,8 @@ from pyspark.sql.types import StructType, StructField, StringType, DateType
 master_df_path    = 'dbfs:/FileStore/super-cricket/master_df.parquet'
 initial_pull_date = date(2021, 1, 1)
 end_date          = date.today()
-#series_urls       = get_series_urls(2011) #uncomment to run from custom year
-series_urls       = get_series_urls(datetime.now().year)
+series_urls       = get_series_urls(2022) #uncomment to run from custom year
+#series_urls       = get_series_urls(datetime.now().year)
 
 schema = StructType([StructField('date', DateType(), True),
                      StructField('first_innings_team', StringType(), True),
@@ -250,7 +249,7 @@ for i, series in enumerate(series_urls):
 # COMMAND ----------
 
 #Remove all games that are already in dataset
-overwrite =  False #Set to true to recalculate whole file
+overwrite =  True #Set to true to recalculate whole file
 if file_exists(master_df_path) and not overwrite:
     existing_df = spark.read.parquet(master_df_path)
     master_df_delta = master_df.exceptAll(existing_df)
@@ -540,7 +539,7 @@ master_bat_filtered = master_bat_filtered.withColumn("Dismissal", remove_special
 root = 'dbfs:/FileStore/super-cricket/'
 #Use delta logic
 bat_filename = f'{root}/master_bat_filtered_series.parquet'
-overwrite = False
+overwrite = True
 if file_exists(bat_filename) and not overwrite:
     existing_bat = spark.read.parquet(bat_filename)
     master_bat_delta = master_bat_filtered.exceptAll(existing_bat)
@@ -592,4 +591,4 @@ tables = ["master_bowl",
           "master_bat",
           "master_results"]
 
-write_to_table(filenames, tables)
+write_to_table(filenames, tables, True)

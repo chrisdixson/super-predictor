@@ -82,6 +82,8 @@ def check_date(element, start_date, end_date):
         game_date = datetime.strptime(game_date_raw.text, "%a, %d %b '%y").date()
         if game_date < start_date or game_date > end_date:
             return False
+    elif game_date_raw:
+        return "Empty"
     else:
         return False
     return game_date
@@ -102,9 +104,8 @@ def team_info(element, result):
             runs, wickets = score.split('/')
             [team_info_list.append(x) for x in [team, over, runs, wickets]]
     else:
-        team1  = element.find('p', class_= 'ds-text-tight-m ds-font-bold ds-capitalize ds-truncate')
-        team2  = element.find('p', class_ = 'ds-text-tight-m ds-font-bold ds-capitalize ds-truncate')
-        team_info_list = [team1.text, 'N/A', 'N/A', 'N/A', team2.text, 'N/A', 'N/A', 'N/A']
+        teams  = element.find_all('p', class_= 'ds-text-tight-m ds-font-bold ds-capitalize ds-truncate')
+        team_info_list = [teams[0].text, 'N/A', 'N/A', 'N/A', teams[1].text, 'N/A', 'N/A', 'N/A']
 
     #print(team_info_list)
     return team_info_list
@@ -209,12 +210,18 @@ def game_df(series_url, start_date = date(2018, 1, 1), end_date = date.today() -
 
     # get date, and team names for the game #
     for element in games:
-
+        game_date = check_date(element, start_date, end_date)
+        try:
+            if game_date == "Empty" and last_date:
+                game_date = last_date
+        except UnboundLocalError:
+            continue
         # Check if result or no result and valid date: append the date to the list
-        if check_result(element) and check_date(element, start_date, end_date):
+        if check_result(element) and game_date:
+            last_date = game_date
             result = check_result(element)
-            print('Success', check_date(element, start_date, end_date), result)
-            game_list.append([check_date(element, start_date, end_date)])
+            print('Success', game_date, result)
+            game_list.append([game_date])
         else: continue
         
         # Append the team_name, over_info, runs, wickets for both teams
